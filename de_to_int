@@ -1,0 +1,102 @@
+import re
+from bs4 import BeautifulSoup
+
+def read_html_file(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        return file.read()
+
+def write_html_file(file_path, content):
+    with open(file_path, 'w', encoding='utf-8') as file:
+        file.write(content)
+
+def replace_shortcode_name(html_content, prefix, new_name):
+    pattern = re.compile(r'(\[dynamic_table name="{}[^"]*)'.format(prefix))
+    return pattern.sub(lambda match: match.group(0).replace(match.group(0).split('"')[1], new_name), html_content)
+
+def replace_table_with_shortcode(soup, section_class, container_class, table_class, new_shortcode):
+    sections = soup.find_all('section', class_=section_class)
+    for section in sections:
+        container = section.find('div', class_=container_class)
+        if container:
+            table_div = container.find('div', class_=table_class)
+            if table_div:
+                table_div.replace_with(new_shortcode)
+    return soup
+
+def replace_list_with_shortcode(soup, outer_div_class, list_class, new_shortcode):
+    outer_divs = soup.find_all('div', class_=outer_div_class)
+    for outer_div in outer_divs:
+        for list_tag in ['ol', 'ul']:
+            list_element = outer_div.find(list_tag, class_=list_class)
+            if list_element:
+                list_element.replace_with(new_shortcode)
+    return soup
+
+def replace_simple_table_name(html_content):
+    pattern = re.compile(r'(\[dynamic_table name="Simple Table [^"]*)')
+    return pattern.sub(lambda match: match.group(1) + ' INT', html_content)
+
+def replace_horizontal_table_name(html_content):
+    pattern = re.compile(r'(\[dynamic_table name="horizontal [^"]*)')
+    return pattern.sub(lambda match: match.group(1) + ' INT', html_content)
+
+def remove_operator_overview_shortcodes(html_content):
+    pattern = re.compile(r'\[dynamic_table name="operator overview[^"]*"\s*[^]]*\]')
+    return pattern.sub('', html_content)
+
+def remove_casino_tab_element_shortcodes(html_content):
+    pattern = re.compile(r'\[dynamic_table name="Casino Element[^"]*"\s*[^]]*\]')
+    return pattern.sub('', html_content)
+
+def replace_hidden_list_name(html_content):
+    pattern = re.compile(r'\[dynamic_table name="hidden list [^"]*"\s*[^]]*\]')
+    return pattern.sub(r'[dynamic_table name="hidden list INT"]', html_content)
+
+def remove_blur_w_msg_class(soup):
+    divs = soup.find_all('div', class_='blur-w-msg')
+    for div in divs:
+        div['class'] = [cls for cls in div['class'] if cls != 'blur-w-msg']
+    return soup
+
+def remove_blur_msg_divs(soup):
+    divs = soup.find_all('div', class_='blur-msg')
+    for div in divs:
+        div.decompose()
+    return soup
+
+input_file_path = 'de.html'
+output_file_path = 'modified_de.html'
+
+html_content = read_html_file(input_file_path)
+
+html_content = replace_shortcode_name(html_content, "top table", "top table no tabs INT")
+html_content = replace_shortcode_name(html_content, "Main Table", "top table no tabs INT")
+html_content = replace_shortcode_name(html_content, "usp table", "usp table INT")
+
+soup = BeautifulSoup(html_content, 'html.parser')
+
+section_class = 'rds-section-gray'
+container_class = 'rds-container'
+table_class = 'rds-table2'
+table_replacement_shortcode = '[dynamic_table name="usp table INT"]'
+soup = replace_table_with_shortcode(soup, section_class, container_class, table_class, table_replacement_shortcode)
+
+outer_div_class = 'rds-intro-top-list-outer'
+list_class = 'rds-intro-top-list'
+list_replacement_shortcode = '[dynamic_table name="hidden list INT"]'
+soup = replace_list_with_shortcode(soup, outer_div_class, list_class, list_replacement_shortcode)
+
+soup = remove_blur_w_msg_class(soup)
+soup = remove_blur_msg_divs(soup)
+
+html_content = str(soup)
+
+html_content = replace_simple_table_name(html_content)
+html_content = replace_horizontal_table_name(html_content)
+html_content = remove_operator_overview_shortcodes(html_content)
+html_content = remove_casino_tab_element_shortcodes(html_content)
+html_content = replace_hidden_list_name(html_content)
+
+write_html_file(output_file_path, html_content)
+
+print(f"HTML content has been modified and saved to '{output_file_path}'")
